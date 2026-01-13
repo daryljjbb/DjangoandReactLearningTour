@@ -33,6 +33,27 @@ class Invoice(models.Model):
         # Makes the invoice readable in Django admin and logs
         return f"Invoice #{self.id} - {self.customer_name}"
 
+class Payment(models.Model):
+    # Link each payment to a specific invoice
+    invoice = models.ForeignKey(
+        Invoice,
+        on_delete=models.CASCADE,
+        related_name="payments"
+    )
+
+    # Amount paid in this transaction
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Optional note (e.g., "Paid via credit card", "Insurance payment")
+    note = models.CharField(max_length=255, blank=True, null=True)
+
+    # Timestamp of the payment
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Payment of ${self.amount} for Invoice #{self.invoice.id}"
+
+
 
 # views.py
 
@@ -102,6 +123,77 @@ class InvoiceDetailView(APIView):
         return Response(status=204)
 
 
+class PaymentListCreateView(APIView):
+    # GET: return all payments
+    def get(self, request):
+        payments = Payment.objects.all().order_by('-created_at')
+        serializer = PaymentSerializer(payments, many=True)
+        return Response(serializer.data)
+
+    # POST: create a new payment
+    def post(self, request):
+        serializer = PaymentSerializer(data=request.data)
+
+        if serializer.is_valid():
+            payment = serializer.save()
+
+            # Optional: auto-update invoice status
+            update_status_if_paid(payment.invoice)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PaymentDetailView(APIView):
+    # Helper to get payment or return None
+    def get_object(self, pk):
+        try:
+            return Payment.objects.get(pk=pk)
+        except Payment.DoesNotExist:
+            return None
+
+    # GET: return a single payment
+    def get(self, request, pk):
+        payment = self.get_object(pk)
+        if not payment:
+            return Response({"error": "Payment not found"}, status=404)
+
+        serializer = PaymentSerializer(payment)
+        return Response(serializer.data)
+
+    # PUT: update payment
+    def put(self, request, pk):
+        payment = self.get_object(pk)
+        if not payment:
+            return Response({"error": "Payment not found"}, status=404)
+
+        serializer = PaymentSerializer(payment, data=request.data)
+        if serializer.is_valid():
+            updated_payment = serializer.save()
+
+            # Optional: re-evaluate invoice status
+            update_status_if_paid(updated_payment.invoice)
+
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)
+
+    # DELETE: delete payment
+    def delete(self, request, pk):
+        payment = self.get_object(pk)
+        if not payment:
+            return Response({"error": "Payment not found"}, status=404)
+
+        invoice = payment.invoice
+        payment.delete()
+
+        # Optional: recalc invoice status after deletion
+        update_status_if_paid(invoice)
+
+        return Response(status=204)
+
+
 # serializers.py
 
 from rest_framework import serializers
@@ -114,16 +206,31 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = '__all__'  # include all fields from the model
 
 
+class PaymentSerializer(serializers.ModelSerializer):
+    # Converts Payment model to JSON and JSON back to model
+    class Meta:
+        model = Payment
+        fields = '__all__'
+
 
 #invoices/urls.py
 
 from django.urls import path
-from .views import InvoiceListCreateView, InvoiceDetailView
+from .views import (
+    InvoiceListCreateView, InvoiceDetailView,
+    PaymentListCreateView, PaymentDetailView
+)
 
 urlpatterns = [
+    # Invoice endpoints
     path('invoices/', InvoiceListCreateView.as_view()),
     path('invoices/<int:pk>/', InvoiceDetailView.as_view()),
+
+    # Payment endpoints
+    path('payments/', PaymentListCreateView.as_view()),
+    path('payments/<int:pk>/', PaymentDetailView.as_view()),
 ]
+
 
 
 # django_project/urls.py
@@ -345,3 +452,76 @@ def update_status_if_paid(invoice):
     if paid_amount >= invoice.amount:
         invoice.status = "paid"
         invoice.save()
+
+
+# 📘 Payment Query Snippet Library
+
+# 💳 1. Get All Payments for an Invoice
+
+# Return all payments linked to a specific invoice
+payments = Payment.objects.filter(invoice=invoice).order_by('-created_at')
+
+# 💰 2. Total Amount Paid Toward an Invoice
+
+from django.db.models import Sum
+
+total_paid = (
+    Payment.objects.filter(invoice=invoice)
+    .aggregate(Sum('amount'))['amount__sum'] or 0
+)
+
+# 🧮 3. Remaining Balance for an Invoice
+
+remaining_balance = invoice.amount - total_paid
+
+# 🔥 4. Detect Overpayment
+
+is_overpaid = total_paid > invoice.amount
+
+# 📅 5. Payment History (Newest First)
+
+payment_history = Payment.objects.filter(invoice=invoice).order_by('-created_at')
+
+
+# 📊 6. Total Payments Across All Invoices
+
+total_payments = Payment.objects.aggregate(Sum('amount'))['amount__sum'] or 0
+
+# 📈 7. Payments Made in the Last 30 Days
+
+from datetime import datetime, timedelta
+
+recent_payments = Payment.objects.filter(
+    created_at__gte=datetime.now() - timedelta(days=30)
+)
+
+# 🗂 8. Payments Grouped by Month
+
+from django.db.models.functions import TruncMonth
+
+monthly_payments = (
+    Payment.objects
+    .annotate(month=TruncMonth('created_at'))
+    .values('month')
+    .annotate(total=Sum('amount'))
+    .order_by('month')
+)
+
+# 🔗 9. Payments for All Unpaid Invoices
+
+payments_for_unpaid = Payment.objects.filter(invoice__status="unpaid")
+
+# 🧠 10. Auto‑Recalculate Invoice Status After Payments
+
+def recalc_invoice_status(invoice):
+    total_paid = (
+        Payment.objects.filter(invoice=invoice)
+        .aggregate(Sum('amount'))['amount__sum'] or 0
+    )
+
+    if total_paid >= invoice.amount:
+        invoice.status = "paid"
+    else:
+        invoice.status = "unpaid"
+
+    invoice.save()
