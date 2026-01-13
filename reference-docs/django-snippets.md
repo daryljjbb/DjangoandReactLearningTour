@@ -247,7 +247,101 @@ dashboard = {
 }
 
 
+#🧠 📘 Django Business Logic Snippets
+
+#💳 1. Calculate Remaining Balance for an Invoice
+# This assumes you will eventually add a Payment model. Even before that, the pattern is worth saving.
+
+from django.db.models import Sum
+
+def get_remaining_balance(invoice):
+    # Total payments made toward this invoice
+    paid_amount = (
+        Payment.objects.filter(invoice=invoice)
+        .aggregate(Sum('amount'))['amount__sum'] or 0
+    )
+
+    # Remaining balance
+    return invoice.amount - paid_amount
 
 
+# 💰 2. Detect Overpayment
+
+def is_overpaid(invoice):
+    paid_amount = (
+        Payment.objects.filter(invoice=invoice)
+        .aggregate(Sum('amount'))['amount__sum'] or 0
+    )
+    return paid_amount > invoice.amount
+
+# 🔥 3. Detect Overdue Invoices (30‑day rule)
+
+from datetime import datetime, timedelta
+
+def get_overdue_invoices():
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+
+    return Invoice.objects.filter(
+        status="unpaid",
+        created_at__lte=thirty_days_ago
+    )
 
 
+# 📅 4. Mark Invoice as Overdue Automatically
+
+def update_invoice_status(invoice):
+    from datetime import datetime, timedelta
+
+    if invoice.status == "paid":
+        return  # no need to update
+
+    if invoice.created_at <= datetime.now() - timedelta(days=30):
+        invoice.status = "overdue"
+        invoice.save()
+
+
+# 📊 5. Dashboard Summary Logic
+
+from django.db.models import Sum
+
+def get_dashboard_summary():
+    return {
+        "total_invoices": Invoice.objects.count(),
+        "paid": Invoice.objects.filter(status="paid").count(),
+        "unpaid": Invoice.objects.filter(status="unpaid").count(),
+        "overdue": Invoice.objects.filter(status="overdue").count(),
+        "total_revenue": Invoice.objects.aggregate(Sum('amount'))['amount__sum'] or 0,
+        "unpaid_total": Invoice.objects.filter(status="unpaid").aggregate(Sum('amount'))['amount__sum'] or 0,
+    }
+
+
+# 📈 6. Monthly Revenue Logic
+
+from django.db.models.functions import TruncMonth
+
+def get_monthly_revenue():
+    return (
+        Invoice.objects
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(total=Sum('amount'))
+        .order_by('month')
+    )
+
+# 🧾 7. Get Payment History for an Invoice
+
+def get_payment_history(invoice):
+    return Payment.objects.filter(invoice=invoice).order_by('-created_at')
+
+
+# 🧮 8. Automatically Update Status When Paid
+
+def update_status_if_paid(invoice):
+    paid_amount = (
+        Payment.objects.filter(invoice=invoice)
+        .aggregate(Sum('amount'))['amount__sum'] or 0
+    )
+
+    if paid_amount >= invoice.amount:
+        invoice.status = "paid"
+        invoice.save()
