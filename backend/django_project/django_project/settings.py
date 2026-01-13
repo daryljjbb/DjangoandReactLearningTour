@@ -55,6 +55,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'django_project.urls'
 
+# this is how to allow other frontend to fetch data
+
+CORS_ALLOWED_ORIGINS=["http://localhost:3000",]#this is the frontend url that django is allow to fetch data from server
+
+# ✅ This line is REQUIRED when using fetch(..., { credentials: 'include' })
+CORS_ALLOW_CREDENTIALS = True
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

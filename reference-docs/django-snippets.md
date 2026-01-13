@@ -231,6 +231,21 @@ urlpatterns = [
     path('payments/<int:pk>/', PaymentDetailView.as_view()),
 ]
 
+from .views import (
+    DashboardSummaryView,
+    MonthlyRevenueView,
+    MonthlyPaymentsView,
+    OverdueInvoicesView
+)
+
+urlpatterns += [
+    path('dashboard/summary/', DashboardSummaryView.as_view()),
+    path('dashboard/monthly-revenue/', MonthlyRevenueView.as_view()),
+    path('dashboard/monthly-payments/', MonthlyPaymentsView.as_view()),
+    path('dashboard/overdue/', OverdueInvoicesView.as_view()),
+]
+
+
 
 
 # django_project/urls.py
@@ -525,3 +540,189 @@ def recalc_invoice_status(invoice):
         invoice.status = "unpaid"
 
     invoice.save()
+
+
+# 📘 Payment Business Logic Snippet Library
+
+# 🧮 1. Calculate Total Paid Toward an Invoice
+
+from django.db.models import Sum
+
+def get_total_paid(invoice):
+    # Sum all payments linked to this invoice
+    return (
+        Payment.objects.filter(invoice=invoice)
+        .aggregate(Sum('amount'))['amount__sum'] or 0
+    )
+
+
+# 💳 2. Calculate Remaining Balance
+
+def get_remaining_balance(invoice):
+    total_paid = get_total_paid(invoice)
+    return invoice.amount - total_paid
+
+# 🔥 3. Detect Overpayment
+
+def is_overpaid(invoice):
+    total_paid = get_total_paid(invoice)
+    return total_paid > invoice.amount
+
+# 🧠 4. Automatically Update Invoice Status (Paid / Unpaid)
+
+def update_status_if_paid(invoice):
+    total_paid = get_total_paid(invoice)
+
+    if total_paid >= invoice.amount:
+        invoice.status = "paid"
+    else:
+        invoice.status = "unpaid"
+
+    invoice.save()
+
+# ⏳ 5. Automatically Mark Invoice as Overdue (30‑day rule)
+
+from datetime import datetime, timedelta
+
+def update_overdue_status(invoice):
+    if invoice.status == "paid":
+        return  # paid invoices are never overdue
+
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+
+    if invoice.created_at <= thirty_days_ago:
+        invoice.status = "overdue"
+        invoice.save()
+
+
+# 📅 6. Recalculate Status After Payment Creation or Deletion
+
+def recalc_invoice_status(invoice):
+    total_paid = get_total_paid(invoice)
+
+    if total_paid >= invoice.amount:
+        invoice.status = "paid"
+    elif invoice.created_at <= datetime.now() - timedelta(days=30):
+        invoice.status = "overdue"
+    else:
+        invoice.status = "unpaid"
+
+    invoice.save()
+
+
+# 📊 7. Get Payment History for an Invoice
+
+def get_payment_history(invoice):
+    return Payment.objects.filter(invoice=invoice).order_by('-created_at')
+
+
+# 🧾 8. Business Logic: Apply Payment and Update Invoice
+
+def apply_payment(invoice, amount, note=""):
+    payment = Payment.objects.create(
+        invoice=invoice,
+        amount=amount,
+        note=note
+    )
+
+    # Recalculate invoice status after payment
+    recalc_invoice_status(invoice)
+
+    return payment
+
+
+# 📊 Dashboard Endpoints (Add to views.py)
+
+
+# 🟦 1. Dashboard Summary Endpoint
+This endpoint returns KPI-style numbers:
+
+Total invoices
+
+Paid invoices
+
+Unpaid invoices
+
+Overdue invoices
+
+Total revenue
+
+Total unpaid amount
+
+Total payments collected
+
+Add this to invoices/views.py:
+
+from django.db.models import Sum
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+class DashboardSummaryView(APIView):
+    def get(self, request):
+        total_invoices = Invoice.objects.count()
+        paid = Invoice.objects.filter(status="paid").count()
+        unpaid = Invoice.objects.filter(status="unpaid").count()
+        overdue = Invoice.objects.filter(status="overdue").count()
+
+        total_revenue = Invoice.objects.aggregate(Sum('amount'))['amount__sum'] or 0
+        unpaid_total = Invoice.objects.filter(status="unpaid").aggregate(Sum('amount'))['amount__sum'] or 0
+        total_payments = Payment.objects.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        return Response({
+            "total_invoices": total_invoices,
+            "paid": paid,
+            "unpaid": unpaid,
+            "overdue": overdue,
+            "total_revenue": total_revenue,
+            "unpaid_total": unpaid_total,
+            "total_payments_collected": total_payments,
+        })
+
+
+#  📈 2. Monthly Revenue Endpoint
+
+from django.db.models.functions import TruncMonth
+
+class MonthlyRevenueView(APIView):
+    def get(self, request):
+        data = (
+            Invoice.objects
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(total=Sum('amount'))
+            .order_by('month')
+        )
+
+        return Response(data)
+
+
+# 💳 3. Monthly Payments Endpoint
+
+class MonthlyPaymentsView(APIView):
+    def get(self, request):
+        data = (
+            Payment.objects
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(total=Sum('amount'))
+            .order_by('month')
+        )
+
+        return Response(data)
+
+# 🔥 4. Overdue Invoices Endpoint
+
+from datetime import datetime, timedelta
+
+class OverdueInvoicesView(APIView):
+    def get(self, request):
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+
+        overdue = Invoice.objects.filter(
+            status="unpaid",
+            created_at__lte=thirty_days_ago
+        )
+
+        serializer = InvoiceSerializer(overdue, many=True)
+        return Response(serializer.data)
+
