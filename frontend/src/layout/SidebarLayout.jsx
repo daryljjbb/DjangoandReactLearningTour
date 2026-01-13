@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Container, Row, Col, Nav, Button } from "react-bootstrap";
 import { NavLink } from "react-router-dom";
 import TopNavbar from "./TopNavbar";
-
-
 import {
   FiHome,
   FiFileText,
@@ -15,28 +13,11 @@ import {
 
 export default function SidebarLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
-
   const toggleSidebar = () => setCollapsed(!collapsed);
 
   return (
     <Container fluid>
       <Row>
-        {/* Main Content */}
-        <Col
-        md={{ span: collapsed ? 11 : 10, offset: collapsed ? 1 : 2 }}
-        className="p-0"
-        style={{
-            marginLeft: collapsed ? "70px" : "220px",
-            transition: "margin 0.3s ease"
-        }}
-        >
-        <TopNavbar />
-
-        <div className="p-4">
-            {children}
-        </div>
-        </Col>
-
         {/* Sidebar */}
         <Col
           md={collapsed ? 1 : 2}
@@ -61,7 +42,7 @@ export default function SidebarLayout({ children }) {
             </Button>
           </div>
 
-          {/* App Title (hide when collapsed) */}
+          {/* App Title */}
           {!collapsed && <h3 className="text-center mb-4">My App</h3>}
 
           <Nav className="flex-column gap-2">
@@ -74,7 +55,6 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Dashboard"}
               </NavLink>
             </Nav.Item>
-
             <Nav.Item>
               <NavLink
                 to="/invoices"
@@ -84,7 +64,6 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Invoices"}
               </NavLink>
             </Nav.Item>
-
             <Nav.Item>
               <NavLink
                 to="/payments"
@@ -94,7 +73,6 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Payments"}
               </NavLink>
             </Nav.Item>
-
             <Nav.Item>
               <NavLink
                 to="/customers"
@@ -107,13 +85,19 @@ export default function SidebarLayout({ children }) {
           </Nav>
         </Col>
 
-        {/* Main Content */}
+        {/* Main Content — only one copy now */}
         <Col
           md={{ span: collapsed ? 11 : 10, offset: collapsed ? 1 : 2 }}
-          className="p-4"
-          style={{ marginLeft: collapsed ? "70px" : "220px", transition: "margin 0.3s ease" }}
+          className="p-0"
+          style={{
+            marginLeft: collapsed ? "70px" : "220px",
+            transition: "margin 0.3s ease"
+          }}
         >
-          {children}
+          <TopNavbar />
+          <div className="p-4">
+            {children}
+          </div>
         </Col>
       </Row>
     </Container>
