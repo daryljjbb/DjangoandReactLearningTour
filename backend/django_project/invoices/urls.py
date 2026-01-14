@@ -14,6 +14,8 @@ urlpatterns = [
     path('payments/', PaymentListCreateView.as_view()),
     path('payments/<int:pk>/', PaymentDetailView.as_view()),
 
+
+
     
 ]
 
@@ -23,5 +25,6 @@ urlpatterns += [
     path('dashboard/monthly-revenue/', MonthlyRevenueView.as_view()),
     path('dashboard/monthly-payments/', MonthlyPaymentsView.as_view()),
     path('dashboard/overdue/', OverdueInvoicesView.as_view()),
+
 ]
 

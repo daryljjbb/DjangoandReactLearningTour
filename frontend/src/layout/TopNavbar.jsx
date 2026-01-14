@@ -1,5 +1,7 @@
 import { Navbar, Nav, Dropdown, Image } from "react-bootstrap";
 import { FiUser, FiSettings, FiLogOut } from "react-icons/fi";
+import { logout } from "../utils/auth";
+
 
 export default function TopNavbar() {
   return (
@@ -38,9 +40,13 @@ export default function TopNavbar() {
 
             <Dropdown.Divider />
 
-            <Dropdown.Item className="d-flex align-items-center gap-2 text-danger">
+            <Dropdown.Item
+              className="d-flex align-items-center gap-2 text-danger"
+              onClick={logout}
+            >
               <FiLogOut /> Logout
             </Dropdown.Item>
+
           </Dropdown.Menu>
         </Dropdown>
 

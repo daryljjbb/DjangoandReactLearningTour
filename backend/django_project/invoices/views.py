@@ -1,8 +1,10 @@
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import Invoice, Payment
 from .serializers import InvoiceSerializer, PaymentSerializer
 
@@ -154,7 +156,10 @@ class PaymentDetailView(APIView):
         return Response(status=204)
     
 
+
 class DashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         total_invoices = Invoice.objects.count()
         paid = Invoice.objects.filter(status="paid").count()
@@ -215,3 +220,18 @@ class OverdueInvoicesView(APIView):
 
         serializer = InvoiceSerializer(overdue, many=True)
         return Response(serializer.data)
+
+
+
+
+
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+class DashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"message": "Protected summary data"})
