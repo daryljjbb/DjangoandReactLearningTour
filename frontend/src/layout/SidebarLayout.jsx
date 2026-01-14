@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { Container, Row, Col, Nav, Button } from "react-bootstrap";
-import { NavLink } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import TopNavbar from "./TopNavbar";
+
 import {
   FiHome,
   FiFileText,
   FiCreditCard,
   FiUsers,
   FiMenu,
-  FiChevronLeft
+  FiChevronLeft,
+  FiUser
 } from "react-icons/fi";
 
-export default function SidebarLayout({ children }) {
+export default function SidebarLayout() {
   const [collapsed, setCollapsed] = useState(false);
+
   const toggleSidebar = () => setCollapsed(!collapsed);
 
   return (
@@ -45,6 +48,7 @@ export default function SidebarLayout({ children }) {
           {/* App Title */}
           {!collapsed && <h3 className="text-center mb-4">My App</h3>}
 
+          {/* Navigation */}
           <Nav className="flex-column gap-2">
             <Nav.Item>
               <NavLink
@@ -55,6 +59,7 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Dashboard"}
               </NavLink>
             </Nav.Item>
+
             <Nav.Item>
               <NavLink
                 to="/invoices"
@@ -64,6 +69,7 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Invoices"}
               </NavLink>
             </Nav.Item>
+
             <Nav.Item>
               <NavLink
                 to="/payments"
@@ -73,6 +79,7 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Payments"}
               </NavLink>
             </Nav.Item>
+
             <Nav.Item>
               <NavLink
                 to="/customers"
@@ -82,10 +89,20 @@ export default function SidebarLayout({ children }) {
                 {!collapsed && "Customers"}
               </NavLink>
             </Nav.Item>
+
+            <Nav.Item>
+              <NavLink
+                to="/profile"
+                className="nav-link text-white d-flex align-items-center gap-2"
+              >
+                <FiUser size={20} />
+                {!collapsed && "Profile"}
+              </NavLink>
+            </Nav.Item>
           </Nav>
         </Col>
 
-        {/* Main Content — only one copy now */}
+        {/* Main Content */}
         <Col
           md={{ span: collapsed ? 11 : 10, offset: collapsed ? 1 : 2 }}
           className="p-0"
@@ -95,8 +112,10 @@ export default function SidebarLayout({ children }) {
           }}
         >
           <TopNavbar />
+
           <div className="p-4">
-            {children}
+            {/* This is where Dashboard, Profile, etc. will render */}
+            <Outlet />
           </div>
         </Col>
       </Row>

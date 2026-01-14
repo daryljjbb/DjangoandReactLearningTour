@@ -6,47 +6,29 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import RequireAuth from "./utils/RequireAuth";
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
   return (
     <Router>
+      <Toaster position="top-right" />
+
       <Routes>
         {/* Public route */}
         <Route path="/login" element={<Login />} />
 
-        {/* Protected routes */}
+        {/* Protected routes wrapped in layout */}
         <Route
-        path="/*"
-        element={
-          <SidebarLayout>
-            <Routes>
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-
-              <Route
-                path="/profile"
-                element={
-                  <RequireAuth>
-                    <Profile />
-                  </RequireAuth>
-                }
-              />
-            </Routes>
-          </SidebarLayout>
-        }
-      />
-
+          element={
+            <RequireAuth>
+              <SidebarLayout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Routes>
     </Router>
   );
 }
-
-
-
-

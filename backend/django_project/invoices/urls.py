@@ -3,7 +3,7 @@ from .views import (
     InvoiceListCreateView, InvoiceDetailView,
     PaymentListCreateView, PaymentDetailView,
     DashboardSummaryView, MonthlyRevenueView, MonthlyPaymentsView, OverdueInvoicesView,
-    UserProfileUpdateView, AvatarUploadView
+    UserProfileUpdateView, AvatarUploadView, AvatarDeleteView, ChangePasswordView
 )
 
 urlpatterns = [
@@ -18,6 +18,10 @@ urlpatterns = [
     # Profile + Avatar
     path("user/profile/", UserProfileUpdateView.as_view()),
     path("user/avatar/", AvatarUploadView.as_view()),
+    path("user/avatar/delete/", AvatarDeleteView.as_view(), name="avatar-delete"),
+    path("user/change-password/", ChangePasswordView.as_view(), name="change-password"),
+
+
 
     # Dashboard endpoints
     path("dashboard/summary/", DashboardSummaryView.as_view()),
