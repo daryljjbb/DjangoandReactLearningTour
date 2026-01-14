@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SidebarLayout from "./layout/SidebarLayout";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
 import RequireAuth from "./utils/RequireAuth";
 
 export default function App() {
@@ -15,22 +16,32 @@ export default function App() {
 
         {/* Protected routes */}
         <Route
-          path="/*"
-          element={
-            <SidebarLayout>
-              <Routes>
-                <Route
-                  path="/dashboard"
-                  element={
-                    <RequireAuth>
-                      <Dashboard />
-                    </RequireAuth>
-                  }
-                />
-              </Routes>
-            </SidebarLayout>
-          }
-        />
+        path="/*"
+        element={
+          <SidebarLayout>
+            <Routes>
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth>
+                    <Dashboard />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/profile"
+                element={
+                  <RequireAuth>
+                    <Profile />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </SidebarLayout>
+        }
+      />
+
       </Routes>
     </Router>
   );
