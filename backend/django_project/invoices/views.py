@@ -240,18 +240,23 @@ class UserProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        request.user.profile.refresh_from_db()
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
 
     def patch(self, request):
-        request.user.profile.refresh_from_db() # <-- ADD THIS
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
 
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=400)
+
 
 
 
@@ -266,6 +271,8 @@ class AvatarUploadView(APIView):
 
         if serializer.is_valid():
             serializer.save()
+            profile.refresh_from_db()
             return Response({"avatar_url": profile.avatar.url})
 
         return Response(serializer.errors, status=400)
+
