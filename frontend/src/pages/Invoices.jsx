@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-
+import { useNavigate } from "react-router-dom";
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,8 @@ const [invoiceFormData, setInvoiceFormData] = useState({
   due_date: "",
   total_amount: "",
 });
+
+const navigate = useNavigate();
 
 
   const fetchInvoices = async () => {
@@ -174,6 +176,13 @@ const handleDeleteInvoice = async () => {
               <td>{inv.status}</td>
               <td>{inv.due_date}</td>
               <td>
+                <button
+                className="btn btn-sm btn-info me-2"
+                onClick={() => navigate(`/invoices/${inv.id}`)}
+                >
+                View
+                </button>
+
                 <button
                 className="btn btn-sm btn-warning me-2"
                 onClick={() => {

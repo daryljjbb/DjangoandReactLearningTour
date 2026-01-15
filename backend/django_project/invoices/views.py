@@ -22,10 +22,23 @@ def get_total_paid(invoice):
 def update_status_if_paid(invoice):
     total_paid = get_total_paid(invoice)
 
-    if total_paid >= invoice.amount:
+    if total_paid >= invoice.total_amount:
         invoice.status = "paid"
     else:
         invoice.status = "unpaid"
+
+    invoice.save()
+
+
+def update_invoice_status(invoice):
+    total_paid = invoice.payments.aggregate(total=Sum("amount"))["total"] or 0
+
+    if total_paid == 0:
+        invoice.status = "unpaid"
+    elif total_paid < invoice.total_amount:
+        invoice.status = "partially_paid"
+    else:
+        invoice.status = "paid"
 
     invoice.save()
 
@@ -107,6 +120,9 @@ class InvoiceDetailView(APIView):
     
 
 class PaymentListCreateView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
     # GET: return all payments
     def get(self, request):
         payments = Payment.objects.all().order_by('-created_at')
@@ -126,56 +142,48 @@ class PaymentListCreateView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def update_invoice_status(invoice):
+        total_paid = invoice.payments.aggregate(total=Sum("amount"))["total"] or 0
+
+        if total_paid == 0:
+            invoice.status = "unpaid"
+        elif total_paid < invoice.total_amount:
+            invoice.status = "partially_paid"
+        else:
+            invoice.status = "paid"
+
+        invoice.save()
+
 
 class PaymentDetailView(APIView):
-    # Helper to get payment or return None
+    permission_classes = [IsAuthenticated]
+
     def get_object(self, pk):
-        try:
-            return Payment.objects.get(pk=pk)
-        except Payment.DoesNotExist:
-            return None
+        return Payment.objects.get(pk=pk)
 
-    # GET: return a single payment
-    def get(self, request, pk):
+    def patch(self, request, pk):
         payment = self.get_object(pk)
-        if not payment:
-            return Response({"error": "Payment not found"}, status=404)
+        serializer = PaymentSerializer(payment, data=request.data, partial=True)
 
-        serializer = PaymentSerializer(payment)
-        return Response(serializer.data)
-
-    # PUT: update payment
-    def put(self, request, pk):
-        payment = self.get_object(pk)
-        if not payment:
-            return Response({"error": "Payment not found"}, status=404)
-
-        serializer = PaymentSerializer(payment, data=request.data)
         if serializer.is_valid():
             updated_payment = serializer.save()
 
-            # Optional: re-evaluate invoice status
-            update_status_if_paid(updated_payment.invoice)
+            # update invoice status
+            update_invoice_status(updated_payment.invoice)
 
             return Response(serializer.data)
 
         return Response(serializer.errors, status=400)
 
-    # DELETE: delete payment
     def delete(self, request, pk):
         payment = self.get_object(pk)
-        if not payment:
-            return Response({"error": "Payment not found"}, status=404)
-
         invoice = payment.invoice
         payment.delete()
 
-        # Optional: recalc invoice status after deletion
-        update_status_if_paid(invoice)
+        update_invoice_status(invoice)
 
         return Response(status=204)
-    
-
 
 
 class DashboardSummaryView(APIView):
