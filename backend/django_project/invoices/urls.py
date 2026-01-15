@@ -1,10 +1,10 @@
 from django.urls import path
 from .views import (
-    InvoiceListCreateView, InvoiceDetailView,
+    InvoiceListCreateView,
     PaymentListCreateView, PaymentDetailView,
     DashboardSummaryView, MonthlyRevenueView, MonthlyPaymentsView, OverdueInvoicesView,
     UserProfileUpdateView, AvatarUploadView, AvatarDeleteView, ChangePasswordView,
-    CustomerListCreateView, CustomerRetrieveUpdateDeleteView
+    CustomerListCreateView, CustomerRetrieveUpdateDeleteView, InvoiceRetrieveUpdateDeleteView
 )
 
 urlpatterns = [
@@ -14,7 +14,7 @@ urlpatterns = [
     
     # Invoice endpoints
     path("invoices/", InvoiceListCreateView.as_view()),
-    path("invoices/<int:pk>/", InvoiceDetailView.as_view()),
+    path("invoices/<int:pk>/", InvoiceRetrieveUpdateDeleteView.as_view(), name="invoice-detail"),
 
     # Payment endpoints
     path("payments/", PaymentListCreateView.as_view()),
