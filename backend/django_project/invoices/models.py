@@ -8,24 +8,39 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
+
+# invoices/models.py
+
+
+
+class Customer(models.Model):
+    name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=50, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+
 
 class Invoice(models.Model):
+
+    STATUS_CHOICES = [ ("unpaid", "Unpaid"), ("paid", "Paid"), ("overdue", "Overdue"), ]
     # Name of the customer (later you can replace this with a Customer model)
-    customer_name = models.CharField(max_length=255)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="invoices")
+    invoice_number = models.CharField(max_length=50, unique=True)
+    issue_date = models.DateField(default=timezone.now)
+    due_date = models.DateField()
 
     # Total amount of the invoice
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     # Status of the invoice: paid, unpaid, or overdue
-    status = models.CharField(
-        max_length=20,
-        choices=[
-            ("paid", "Paid"),
-            ("unpaid", "Unpaid"),
-            ("overdue", "Overdue")
-        ],
-        default="unpaid"
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="unpaid")
 
     # Date the invoice was created (automatically set)
     created_at = models.DateTimeField(auto_now_add=True)

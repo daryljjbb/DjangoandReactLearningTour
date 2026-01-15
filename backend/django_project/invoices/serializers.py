@@ -1,8 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Invoice,Payment,Profile
+from .models import Invoice,Payment,Profile,Customer
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = "__all__"
+
 
 class InvoiceSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
     # Converts Invoice model to JSON and JSON back to model
     class Meta:
         model = Invoice

@@ -6,8 +6,10 @@ from django.db.models.functions import TruncMonth
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Invoice, Payment
-from .serializers import InvoiceSerializer, PaymentSerializer, UserProfileSerializer, AvatarUploadSerializer
+from rest_framework import generics, permissions
+from datetime import datetime, timedelta
+from .models import Invoice, Payment, Customer
+from .serializers import InvoiceSerializer, PaymentSerializer, UserProfileSerializer, AvatarUploadSerializer, CustomerSerializer
 
 def get_total_paid(invoice):
     # Sum all payments linked to this invoice
@@ -27,10 +29,23 @@ def update_status_if_paid(invoice):
 
     invoice.save()
 
+
+class CustomerListCreateView(generics.ListCreateAPIView):
+    queryset = Customer.objects.all().order_by("-id")
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class CustomerRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
 class InvoiceListCreateView(APIView):
     # GET: return all invoices
     def get(self, request):
-        invoices = Invoice.objects.all().order_by('-created_at')
+        invoices = Invoice.objects.all().order_by('-id')
         serializer = InvoiceSerializer(invoices, many=True)
         return Response(serializer.data)
 
@@ -46,6 +61,10 @@ class InvoiceListCreateView(APIView):
         # If validation fails, return errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class InvoiceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 class InvoiceDetailView(APIView):
     # Helper method to get invoice or return None
@@ -158,6 +177,7 @@ class PaymentDetailView(APIView):
     
 
 
+
 class DashboardSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -167,9 +187,17 @@ class DashboardSummaryView(APIView):
         unpaid = Invoice.objects.filter(status="unpaid").count()
         overdue = Invoice.objects.filter(status="overdue").count()
 
-        total_revenue = Invoice.objects.aggregate(Sum('amount'))['amount__sum'] or 0
-        unpaid_total = Invoice.objects.filter(status="unpaid").aggregate(Sum('amount'))['amount__sum'] or 0
-        total_payments = Payment.objects.aggregate(Sum('amount'))['amount__sum'] or 0
+        total_revenue = Invoice.objects.aggregate(
+            Sum('total_amount')
+        )['total_amount__sum'] or 0
+
+        unpaid_total = Invoice.objects.filter(status="unpaid").aggregate(
+            Sum('total_amount')
+        )['total_amount__sum'] or 0
+
+        total_payments = Payment.objects.aggregate(
+            Sum('amount')
+        )['amount__sum'] or 0
 
         return Response({
             "total_invoices": total_invoices,
@@ -182,20 +210,23 @@ class DashboardSummaryView(APIView):
         })
 
 
-
 class MonthlyRevenueView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         data = (
             Invoice.objects
             .annotate(month=TruncMonth('created_at'))
             .values('month')
-            .annotate(total=Sum('amount'))
+            .annotate(total=Sum('total_amount'))
             .order_by('month')
         )
-
         return Response(data)
 
+
 class MonthlyPaymentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         data = (
             Payment.objects
@@ -204,13 +235,12 @@ class MonthlyPaymentsView(APIView):
             .annotate(total=Sum('amount'))
             .order_by('month')
         )
-
         return Response(data)
 
 
-from datetime import datetime, timedelta
-
 class OverdueInvoicesView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         thirty_days_ago = datetime.now() - timedelta(days=30)
 
@@ -221,19 +251,6 @@ class OverdueInvoicesView(APIView):
 
         serializer = InvoiceSerializer(overdue, many=True)
         return Response(serializer.data)
-
-
-
-
-class DashboardSummaryView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        return Response({"message": "Protected summary data"})
-
-
-
-
 
 
 class UserProfileUpdateView(APIView):
