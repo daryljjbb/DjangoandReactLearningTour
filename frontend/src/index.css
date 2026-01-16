@@ -24,4 +24,15 @@
 }
 
 
+/* Force overdue rows to stay red even on hover */
+tr.table-danger {
+  --bs-table-hover-bg: #f8d7da !important; /* override Bootstrap hover variable */
+}
 
+tr.table-danger > td {
+  background-color: #f8d7da !important;
+}
+
+tr.table-danger:hover > td {
+  background-color: #f8d7da !important;
+}

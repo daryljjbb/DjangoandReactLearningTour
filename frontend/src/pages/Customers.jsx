@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom"
 
 export default function Customers() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -123,6 +125,8 @@ export default function Customers() {
     }
   };
 
+  if (!Array.isArray(customers)) { return <p>Loading customers...</p>; }
+
   if (loading) return <p>Loading customers...</p>;
 
   return (
@@ -154,6 +158,12 @@ export default function Customers() {
               <td>{c.email}</td>
               <td>{c.phone}</td>
               <td>
+                <button
+                  className="btn btn-sm btn-info me-2"
+                  onClick={() => navigate(`/customers/${c.id}`)}
+                >
+                  View
+                </button>
                 <button
                   className="btn btn-sm btn-warning me-2"
                   onClick={() => {

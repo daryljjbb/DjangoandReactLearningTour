@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import '../index.css';
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,12 @@ const [invoiceFormData, setInvoiceFormData] = useState({
 
 const navigate = useNavigate();
 
+
+const statusColors = {
+  unpaid: "badge bg-danger",
+  partially_paid: "badge bg-warning text-dark",
+  paid: "badge bg-success",
+};
 
   const fetchInvoices = async () => {
     try {
@@ -144,6 +151,8 @@ const handleDeleteInvoice = async () => {
   }
 };
 
+  if (!Array.isArray(customers)) { return <p>Loading customers...</p>; }
+  if (!Array.isArray(invoices)) { return <p>Loading invoices...</p>; }
 
   if (loading) return <p>Loading invoices...</p>;
 
@@ -155,7 +164,7 @@ const handleDeleteInvoice = async () => {
         Add Invoice
       </button>
 
-      <table className="table table-striped">
+      <table className="table table-hover">
         <thead>
           <tr>
             <th>Invoice #</th>
@@ -169,11 +178,27 @@ const handleDeleteInvoice = async () => {
 
         <tbody>
           {invoices.map((inv) => (
-            <tr key={inv.id}>
+          <tr
+                    key={inv.id}
+                    className={inv.is_overdue ? "table-danger" : ""}
+         >
+
+
+
+
               <td>{inv.invoice_number}</td>
               <td>{inv.customer_name}</td>
               <td>${inv.total_amount}</td>
-              <td>{inv.status}</td>
+              <td>
+                <span className={statusColors[inv.status]}>
+                    {inv.status.replace("_", " ")}
+                </span>
+
+                {inv.is_overdue && inv.status !== "paid" && (
+                    <span className="badge bg-danger ms-2">Overdue</span>
+                )}
+                </td>
+
               <td>{inv.due_date}</td>
               <td>
                 <button

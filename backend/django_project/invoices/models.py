@@ -29,12 +29,19 @@ class Customer(models.Model):
 
 class Invoice(models.Model):
 
-    STATUS_CHOICES = [ ("unpaid", "Unpaid"), ("paid", "Paid"), ("overdue", "Overdue"), ]
+    STATUS_CHOICES = [
+    ("unpaid", "Unpaid"),
+    ("partially_paid", "Partially Paid"),
+    ("paid", "Paid"),
+]
+
     # Name of the customer (later you can replace this with a Customer model)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="invoices")
     invoice_number = models.CharField(max_length=50, unique=True)
     issue_date = models.DateField(default=timezone.now)
     due_date = models.DateField()
+    is_overdue = models.BooleanField(default=False)
+
 
     # Total amount of the invoice
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)

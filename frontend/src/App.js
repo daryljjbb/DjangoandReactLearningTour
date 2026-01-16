@@ -3,6 +3,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SidebarLayout from "./layout/SidebarLayout";
 import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
 import Dashboard from "./pages/Dashboard";
 import Invoices from "./pages/Invoices";
 import InvoiceDetail from "./pages/InvoiceDetail";
@@ -10,6 +11,8 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import RequireAuth from "./utils/RequireAuth";
 import { Toaster } from "react-hot-toast";
+import "./index.css";
+
 
 export default function App() {
   return (
@@ -30,6 +33,7 @@ export default function App() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/:id" element={<CustomerDetail />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/invoices/:id" element={<InvoiceDetail />} />
           <Route path="/profile" element={<Profile />} />

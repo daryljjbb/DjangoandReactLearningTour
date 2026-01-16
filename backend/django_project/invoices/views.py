@@ -10,6 +10,9 @@ from rest_framework import generics, permissions
 from datetime import datetime, timedelta
 from .models import Invoice, Payment, Customer
 from .serializers import InvoiceSerializer, PaymentSerializer, UserProfileSerializer, AvatarUploadSerializer, CustomerSerializer
+from datetime import date
+
+
 
 def get_total_paid(invoice):
     # Sum all payments linked to this invoice
@@ -30,15 +33,24 @@ def update_status_if_paid(invoice):
     invoice.save()
 
 
+from datetime import date
+
 def update_invoice_status(invoice):
     total_paid = invoice.payments.aggregate(total=Sum("amount"))["total"] or 0
 
+    # Determine paid status
     if total_paid == 0:
         invoice.status = "unpaid"
     elif total_paid < invoice.total_amount:
         invoice.status = "partially_paid"
     else:
         invoice.status = "paid"
+
+    # Overdue logic
+    if invoice.due_date and invoice.due_date < date.today() and invoice.status != "paid":
+        invoice.is_overdue = True
+    else:
+        invoice.is_overdue = False
 
     invoice.save()
 
@@ -55,6 +67,16 @@ class CustomerRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
 
+class CustomerInvoiceListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        invoices = Invoice.objects.filter(customer_id=pk).order_by("-issue_date")
+        serializer = InvoiceSerializer(invoices, many=True)
+        return Response(serializer.data)
+
+
+
 class InvoiceListCreateView(APIView):
     # GET: return all invoices
     def get(self, request):
@@ -68,7 +90,8 @@ class InvoiceListCreateView(APIView):
 
         # Validate incoming data
         if serializer.is_valid():
-            serializer.save()  # create invoice
+            invoice = serializer.save() # create invoice  # create invoice
+            update_invoice_status(invoice) # ⭐ ADD THIS
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         # If validation fails, return errors
@@ -78,6 +101,11 @@ class InvoiceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_update(self, serializer):
+        invoice = serializer.save()
+        update_invoice_status(invoice)  # ⭐ ADD THIS
+
 
 class InvoiceDetailView(APIView):
     # Helper method to get invoice or return None
@@ -104,7 +132,8 @@ class InvoiceDetailView(APIView):
 
         serializer = InvoiceSerializer(invoice, data=request.data)
         if serializer.is_valid():
-            serializer.save()  # update invoice
+            invoice = serializer.save() # update invoice
+            update_invoice_status(invoice) # ⭐ ADD THIS
             return Response(serializer.data)
 
         return Response(serializer.errors, status=400)
@@ -137,23 +166,15 @@ class PaymentListCreateView(APIView):
             payment = serializer.save()
 
             # Optional: auto-update invoice status
-            update_status_if_paid(payment.invoice)
+            update_invoice_status(payment.invoice)
+
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def update_invoice_status(invoice):
-        total_paid = invoice.payments.aggregate(total=Sum("amount"))["total"] or 0
+    
 
-        if total_paid == 0:
-            invoice.status = "unpaid"
-        elif total_paid < invoice.total_amount:
-            invoice.status = "partially_paid"
-        else:
-            invoice.status = "paid"
-
-        invoice.save()
 
 
 class PaymentDetailView(APIView):
@@ -183,7 +204,9 @@ class PaymentDetailView(APIView):
 
         update_invoice_status(invoice)
 
+
         return Response(status=204)
+
 
 
 class DashboardSummaryView(APIView):
@@ -193,29 +216,31 @@ class DashboardSummaryView(APIView):
         total_invoices = Invoice.objects.count()
         paid = Invoice.objects.filter(status="paid").count()
         unpaid = Invoice.objects.filter(status="unpaid").count()
-        overdue = Invoice.objects.filter(status="overdue").count()
 
-        total_revenue = Invoice.objects.aggregate(
-            Sum('total_amount')
-        )['total_amount__sum'] or 0
+        # ✅ Correct overdue logic
+        overdue_qs = Invoice.objects.filter(
+            due_date__lt=date.today(),
+            status__in=["unpaid", "partially_paid"]
+        )
 
-        unpaid_total = Invoice.objects.filter(status="unpaid").aggregate(
-            Sum('total_amount')
-        )['total_amount__sum'] or 0
+        overdue = overdue_qs.count()
+        overdue_total = overdue_qs.aggregate(Sum("total_amount"))["total_amount__sum"] or 0
 
-        total_payments = Payment.objects.aggregate(
-            Sum('amount')
-        )['amount__sum'] or 0
+        total_revenue = Invoice.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        unpaid_total = Invoice.objects.filter(status="unpaid").aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        total_payments = Payment.objects.aggregate(Sum('amount'))['amount__sum'] or 0
 
         return Response({
             "total_invoices": total_invoices,
             "paid": paid,
             "unpaid": unpaid,
             "overdue": overdue,
+            "overdue_total": overdue_total,
             "total_revenue": total_revenue,
             "unpaid_total": unpaid_total,
             "total_payments_collected": total_payments,
         })
+
 
 
 class MonthlyRevenueView(APIView):
